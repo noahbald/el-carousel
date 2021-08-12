@@ -1,0 +1,38 @@
+{
+  "name": "el-carousel",
+  "version": "0.1.0",
+  "description": "A simple, minimal carousel",
+  "main": "dist/el-carousel.min.js",
+  "scripts": {
+    "build": "tsc",
+    "dist": "npm run build && rollup -c && uglifyjs ./dist/el-carousel.js -o ./dist/el-carousel.min.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/noahbald/el-carousel.git"
+  },
+  "keywords": [
+    "carousel",
+    "es6"
+  ],
+  "author": "noahbald",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/noahbald/el-carousel/issues"
+  },
+  "homepage": "https://github.com/noahbald/el-carousel#readme",
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^4.29.0",
+    "@typescript-eslint/parser": "^4.29.0",
+    "eslint": "^7.32.0",
+    "eslint-config-airbnb-base": "^14.2.1",
+    "eslint-plugin-import": "^2.23.4",
+    "rollup": "^2.56.1",
+    "typescript": "^4.3.5",
+    "uglify-js": "^3.14.1"
+  },
+  "type": "module",
+  "dependencies": {
+    "tslib": "^2.0.0"
+  }
+}
