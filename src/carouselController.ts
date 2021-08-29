@@ -4,7 +4,7 @@ import type { CarouselOptions } from './types'
 /**
  * 🎠 El Carousel Controller 🎠
  */
- export default class CarouselController extends Carousel {
+export default class CarouselController extends Carousel {
   /**
    * Create a carousel
    *
@@ -14,6 +14,9 @@ import type { CarouselOptions } from './types'
    */
   constructor(options: CarouselOptions) {
     super(options)
+
+    // Add events
+    window.addEventListener('resize', this.$handleResize)
 
     // Build frame
     this.build()
@@ -195,14 +198,6 @@ import type { CarouselOptions } from './types'
     return el
   }
 
-  destroy() {
-    clearTimeout(this.model.timingLock)
-
-    // Restore container to previous state
-    this.properties.container.innerHTML = ''
-    this.model.items.forEach((el) => this.properties.container.appendChild(el))
-  }
-
   doDrag() {
     // Check if we can drag
     if (
@@ -283,4 +278,42 @@ import type { CarouselOptions } from './types'
     }
     this.changeBy(moveBy)
   }
+
+  destroy() {
+    clearTimeout(this.model.timingLock)
+    window.removeEventListener('resize', this.$handleResize)
+
+    // Restore container to previous state
+    const { container } = this.properties
+    const { items } = this.model
+
+    container.innerHTML = ''
+    const fragment = document.createDocumentFragment()
+    items.forEach((item) => fragment.appendChild(item))
+    container.appendChild(fragment)
+
+    container.style.width = ''
+  }
+
+  protected handleResize() {
+    const { items } = this.model
+
+    // Wait until resizing has ended
+    if (!this.resizeLock) {
+      this.resizeLock = setTimeout(() => {
+        this.destroy()
+        window.addEventListener('resize', () => this.handleResize())
+        // Build after render, before paint
+        requestAnimationFrame(() => {
+          this.model.widths = items.map((item) => item.offsetWidth)
+          this.build()
+          this.resizeLock = undefined
+        })
+      }, 100)
+    }
+  }
+
+  private $handleResize = this.handleResize.bind(this)
+
+  private resizeLock?: number
 }

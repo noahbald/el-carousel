@@ -80,7 +80,6 @@ export default abstract class Carousel {
 
     // Attach events
     const { draggable } = this.properties
-    // TODO: window.addEventListener('resize', (e) => this.handleResize(e))
     if (draggable) {
       // Touch Events
       container.addEventListener('touchstart', (e) => this.handleTouchStart(e))
