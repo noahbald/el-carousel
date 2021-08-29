@@ -30,11 +30,9 @@ var CarouselController = (function (tslib) {
             var container = this.properties.container;
             var items = Array.from(container.children).filter(function (child) { return child instanceof HTMLElement; });
             var widths = items.map(function (item) { return item.offsetWidth; });
-            var leftOffset = -widths.reduce(function (acc, width) { return acc + width; }, 0);
             this.model = {
                 items: items,
                 widths: widths,
-                leftOffset: leftOffset,
             };
             var draggable = this.properties.draggable;
             if (draggable) {
@@ -48,14 +46,27 @@ var CarouselController = (function (tslib) {
                 container.addEventListener('click', Carousel.handleClick);
             }
         }
+        Object.defineProperty(Carousel.prototype, "leftOffset", {
+            get: function () {
+                var widths = this.model.widths;
+                return -widths.reduce(function (acc, width) { return acc + width; }, 0);
+            },
+            enumerable: false,
+            configurable: true
+        });
         Carousel.prototype.changeBy = function (amount) {
             if (amount === void 0) { amount = 1; }
             var _a = this.properties, frame = _a.frame, perPage = _a.perPage, loop = _a.loop;
             var items = this.model.items;
             var newFrame = frame + amount;
-            newFrame = loop
-                ? newFrame
-                : Math.max(0, Math.min(newFrame, items.length - perPage));
+            if (!loop) {
+                if (frame - amount < 0) {
+                    newFrame = 0;
+                }
+                else if (frame - amount > items.length - perPage) {
+                    newFrame = items.length - perPage;
+                }
+            }
             this.slideTo(newFrame);
         };
         Carousel.prototype.handleTouchStart = function (ev) {
@@ -138,18 +149,24 @@ var CarouselController = (function (tslib) {
         tslib.__extends(CarouselController, _super);
         function CarouselController(options) {
             var _this = _super.call(this, options) || this;
+            _this.$handleResize = _this.handleResize.bind(_this);
+            window.addEventListener('resize', _this.$handleResize);
             _this.build();
             return _this;
         }
         CarouselController.prototype.build = function () {
             var _a = this.properties, container = _a.container, perPage = _a.perPage, frame = _a.frame;
             var widths = this.model.widths;
-            var leftOffset = this.model.leftOffset;
+            var leftOffset = this.leftOffset;
             var containerWidth = 0;
             var frames = new DocumentFragment();
-            for (var i = frame - perPage; i < frame + 2 * perPage; i += 1) {
+            for (var i = frame - widths.length; i < frame + perPage + widths.length; i += 1) {
                 var el = this.createFrame(i);
                 el.style.transform = "translateX(" + leftOffset + "px)";
+                if (frame <= i && i < frame + perPage) {
+                    el.classList.remove('out');
+                    el.classList.add('in');
+                }
                 leftOffset += widths[this.currentSlide(frame + i)];
                 containerWidth += i >= 0 && i < perPage
                     ? widths[this.currentSlide(frame + i)]
@@ -172,11 +189,11 @@ var CarouselController = (function (tslib) {
             if (delta === 0) {
                 return;
             }
-            if (!loop && (newFrame < 0 || newFrame > items.length - perPage)) {
+            if (!loop && (frame - delta < 0 || frame - delta > items.length - perPage)) {
                 throw Error('Cannot slide outside of range');
             }
             var fragment = new DocumentFragment();
-            var leftOffset = this.model.leftOffset;
+            var leftOffset = this.leftOffset;
             for (var i = Math.min(0, delta); i < Math.max(0, delta); i += 1) {
                 var el = this.createFrame(frame + i - delta);
                 if (delta > 0) {
@@ -184,7 +201,7 @@ var CarouselController = (function (tslib) {
                 }
                 else {
                     el.style.transform = "translateX(" + -2 * leftOffset + "px)";
-                    leftOffset -= widths[this.currentSlide(i)];
+                    leftOffset -= widths[this.currentSlide(frame + i - delta)];
                 }
                 fragment.appendChild(el);
             }
@@ -208,7 +225,8 @@ var CarouselController = (function (tslib) {
                 if (child instanceof HTMLElement) {
                     child.style.transform = "translateX(" + leftOffset + "px)";
                     leftOffset += child.offsetWidth;
-                    if (perPage <= i + Math.min(0, delta) && i + Math.min(0, delta) <= perPage * 2 - 1) {
+                    if (widths.length <= i + Math.min(0, delta)
+                        && i + Math.min(0, delta) <= widths.length + perPage - 1) {
                         child.classList.add('in');
                         child.classList.remove('out');
                     }
@@ -244,12 +262,6 @@ var CarouselController = (function (tslib) {
             el.appendChild(item.cloneNode(true));
             return el;
         };
-        CarouselController.prototype.destroy = function () {
-            var _this = this;
-            clearTimeout(this.model.timingLock);
-            this.properties.container.innerHTML = '';
-            this.model.items.forEach(function (el) { return _this.properties.container.appendChild(el); });
-        };
         CarouselController.prototype.doDrag = function () {
             if ((this.model.timingLock && this.model.timingLock !== -1)
                 || !this.properties.draggable
@@ -260,7 +272,7 @@ var CarouselController = (function (tslib) {
             var widths = this.model.widths;
             var _b = this.properties, container = _b.container, frame = _b.frame, timingDuration = _b.timingDuration;
             var delta = endX - startX;
-            var leftOffset = this.model.leftOffset + delta;
+            var leftOffset = this.leftOffset + delta;
             for (var i = 0; i < container.children.length; i += 1) {
                 var child = container.children[i];
                 if (child instanceof HTMLElement) {
@@ -309,6 +321,32 @@ var CarouselController = (function (tslib) {
                 }
             }
             this.changeBy(moveBy);
+        };
+        CarouselController.prototype.destroy = function () {
+            clearTimeout(this.model.timingLock);
+            window.removeEventListener('resize', this.$handleResize);
+            var container = this.properties.container;
+            var items = this.model.items;
+            container.innerHTML = '';
+            var fragment = document.createDocumentFragment();
+            items.forEach(function (item) { return fragment.appendChild(item); });
+            container.appendChild(fragment);
+            container.style.width = '';
+        };
+        CarouselController.prototype.handleResize = function () {
+            var _this = this;
+            var items = this.model.items;
+            if (!this.resizeLock) {
+                this.resizeLock = setTimeout(function () {
+                    _this.destroy();
+                    window.addEventListener('resize', function () { return _this.handleResize(); });
+                    requestAnimationFrame(function () {
+                        _this.model.widths = items.map(function (item) { return item.offsetWidth; });
+                        _this.build();
+                        _this.resizeLock = undefined;
+                    });
+                }, 100);
+            }
         };
         return CarouselController;
     }(Carousel));

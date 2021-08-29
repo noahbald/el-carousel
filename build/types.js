@@ -28,11 +28,9 @@ var Carousel = (function () {
         var container = this.properties.container;
         var items = Array.from(container.children).filter(function (child) { return child instanceof HTMLElement; });
         var widths = items.map(function (item) { return item.offsetWidth; });
-        var leftOffset = -widths.reduce(function (acc, width) { return acc + width; }, 0);
         this.model = {
             items: items,
             widths: widths,
-            leftOffset: leftOffset,
         };
         var draggable = this.properties.draggable;
         if (draggable) {
@@ -46,14 +44,27 @@ var Carousel = (function () {
             container.addEventListener('click', Carousel.handleClick);
         }
     }
+    Object.defineProperty(Carousel.prototype, "leftOffset", {
+        get: function () {
+            var widths = this.model.widths;
+            return -widths.reduce(function (acc, width) { return acc + width; }, 0);
+        },
+        enumerable: false,
+        configurable: true
+    });
     Carousel.prototype.changeBy = function (amount) {
         if (amount === void 0) { amount = 1; }
         var _a = this.properties, frame = _a.frame, perPage = _a.perPage, loop = _a.loop;
         var items = this.model.items;
         var newFrame = frame + amount;
-        newFrame = loop
-            ? newFrame
-            : Math.max(0, Math.min(newFrame, items.length - perPage));
+        if (!loop) {
+            if (frame - amount < 0) {
+                newFrame = 0;
+            }
+            else if (frame - amount > items.length - perPage) {
+                newFrame = items.length - perPage;
+            }
+        }
         this.slideTo(newFrame);
     };
     Carousel.prototype.handleTouchStart = function (ev) {
